@@ -5,6 +5,7 @@ import qpp.*;
 import qrels.Evaluator;
 import qrels.Metric;
 import retrieval.Constants;
+import retrieval.KNNRelModel;
 import retrieval.MsMarcoQuery;
 import retrieval.OneStepRetriever;
 import stochastic_qpp.TauAndSARE;
@@ -32,16 +33,14 @@ public class QPPPrecHeavyEvaluator {
     static TauAndSARE evaluate(List<MsMarcoQuery> queries,
                          QPPMethod qppMethod,
                          Metric targetMetric,
-                         Evaluator evaluator) {
+                         Evaluator evaluator, double[] evaluatedMetricValues) {
         int i;
         Map<String, TopDocs> topDocsMap = evaluator.getAllRetrievedResults().castToTopDocs();
 
         double[] qppEstimates = new double[queries.size()];
-        double[] evaluatedMetricValues = new double[queries.size()];
 
         i = 0;
         for (MsMarcoQuery query: queries) {
-            evaluatedMetricValues[i] = evaluator.compute(query.getId(), targetMetric);
             qppEstimates[i] = qppMethod.computeSpecificity(query, topDocsMap.get(query.getId()), 50);
             /*
             System.out.println(String.format(
@@ -50,9 +49,6 @@ public class QPPPrecHeavyEvaluator {
              */
             i++;
         }
-
-        System.out.println(frequencyMap(Arrays.stream(evaluatedMetricValues).boxed()));
-
         return new TauAndSARE(evaluatedMetricValues, qppEstimates);
     }
 
@@ -72,9 +68,30 @@ public class QPPPrecHeavyEvaluator {
 
         QPPMethod[] qppMethods = {
                 new NQCSpecificity(retriever.getSearcher()),
+                new VariantSpecificity(
+                    new NQCSpecificity(retriever.getSearcher()),
+                    retriever.getSearcher(),
+                    new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERIES_DL1920, false),
+                    5, 0.5f
+                ),
+                new VariantSpecificity(
+                        new NQCSpecificity(retriever.getSearcher()),
+                        retriever.getSearcher(),
+                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERIES_DL1920, false),
+                        5, 0.2f
+                ),
+                new VariantSpecificity(
+                        new NQCSpecificity(retriever.getSearcher()),
+                        retriever.getSearcher(),
+                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERIES_DL1920, false),
+                        5, 0.8f
+                ),
                 new OddsRatioSpecificity(retriever.getSearcher(), 0.2f),
                 new WIGSpecificity(retriever.getSearcher()),
-                new NQCCalibratedSpecificity(retriever.getSearcher(), 1.5f, 0.25f, 0.5f),
+                new NQCCalibratedSpecificity(retriever.getSearcher(), 0.33f, 0.33f, 0.33f),
+                new NQCCalibratedSpecificity(retriever.getSearcher(), 0.8f, 0.1f, 0.1f),
+                new NQCCalibratedSpecificity(retriever.getSearcher(), 0.1f, 0.8f, 0.1f),
+                new NQCCalibratedSpecificity(retriever.getSearcher(), 0.1f, 0.1f, 0.8f),
                 new RSDSpecificity(new NQCSpecificity(retriever.getSearcher())),
                 new UEFSpecificity(new NQCSpecificity(retriever.getSearcher()))
         };
@@ -84,9 +101,16 @@ public class QPPPrecHeavyEvaluator {
 
         Evaluator evaluator = new Evaluator(Constants.QRELS_DL1920, resFile, 10); // Metrics for top-10
 
-        for (QPPMethod qppMethod: qppMethods) {
-            for (Metric targetMetric: targetMetricNames) {
-                TauAndSARE qppMetrics = evaluate(queries, qppMethod, targetMetric, evaluator);
+        for (Metric targetMetric: targetMetricNames) {
+            double[] evaluatedMetricValues = new double[queries.size()];
+            int i=0;
+            for (MsMarcoQuery query: queries) {
+                evaluatedMetricValues[i++] = evaluator.compute(query.getId(), targetMetric);
+            }
+            System.out.println(frequencyMap(Arrays.stream(evaluatedMetricValues).boxed()));
+
+            for (QPPMethod qppMethod: qppMethods) {
+                TauAndSARE qppMetrics = evaluate(queries, qppMethod, targetMetric, evaluator, evaluatedMetricValues);
                 System.out.println(String.format("%s on %s: tau = %.4f, sare = %.4f",
                         qppMethod.name(),
                         targetMetric.name(),

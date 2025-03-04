@@ -27,7 +27,9 @@ public class NQCCalibratedSpecificity extends NQCSpecificity {
         this.gamma = gamma;
     }
 
-    public double computeNQC(Query q, double[] rsvs) {
+    @Override
+    public double computeNQC(Query q, double[] rsvs, int k) {
+        rsvs = Arrays.stream(rsvs).limit(k).toArray();
         double mean = Arrays.stream(rsvs).average().getAsDouble();
 
         double avgIDF = 0;
@@ -55,11 +57,11 @@ public class NQCCalibratedSpecificity extends NQCSpecificity {
     }
 
      public double computeNQC(Query q, RetrievedResults topDocs, int k) {
-        return computeNQC(q, topDocs.getRSVs(k));
+        return computeNQC(q, topDocs.getRSVs(k), k);
     }
 
     @Override
     public String name() {
-        return "nqc_generic";
+        return String.format("snqc_%.2f-%.2f-%.2f", alpha, beta, gamma);
     }
 }

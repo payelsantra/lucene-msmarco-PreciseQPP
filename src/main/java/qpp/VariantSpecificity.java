@@ -96,18 +96,19 @@ public class VariantSpecificity extends NQCSpecificity {
             if (norlamiseScores)
                 topDocsRQ = normaliseScores(topDocsRQ);
 
-            //System.out.println("var scores after norm:");
-            //varInfo.getTuples().stream().limit(5).forEach(System.out::println);
-
             variantSpecScore = baseModel.computeSpecificity(rq, topDocsRQ, k);
             refSim = rq.getRefSim();
 
-            //System.out.println(String.format("%s %.4f", rq.getId(), variantSpecScore));
             specScore +=  refSim * variantSpecScore ;
             z += refSim;
         }
 
         return z==0? baseModel.computeSpecificity(q, topDocs, k): specScore/z;
+    }
+
+    @Override
+    public String name() {
+        return String.format("QV-JM-%s-%d-%.2f", baseModel.name(), numVariants, lambda);
     }
 
 }
