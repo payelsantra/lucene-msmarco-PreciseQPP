@@ -67,6 +67,10 @@ public interface Constants {
 
     String QRELS_DL1920 = "data/trecdl/trecdl1920.qrels";
     String QUERIES_DL1920 = "data/trecdl/trecdl1920.queries";
+
+    String QRELS_MSMARCO_DEV_SMALL = "data/qrels.dev.small.tsv";
+    String QUERIES_MSMARCO_DEV_SMALL = "data/queries.dev.small.tsv";
+
     //String QUERIES_DL1920 = "data/trecdl/pass_2019.queries.small"; // for unit test
     String BM25_Top100_DL1920 = "stochastic-qpp/trecdl1920.bm25.res";
     String ColBERT_Top100_DL1920 = "stochastic-qpp/trecdl1920.colbert-e2e.res";

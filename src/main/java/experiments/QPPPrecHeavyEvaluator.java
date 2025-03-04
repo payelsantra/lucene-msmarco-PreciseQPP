@@ -17,7 +17,7 @@ import java.util.stream.*;
 import java.util.*;
 import java.util.function.*;
 
-public class DLQPPEvaluatorSimple {
+public class QPPPrecHeavyEvaluator {
 
     static <T>Map<T, Long> frequencyMap(Stream<T> elements) {
         return elements.collect(
@@ -43,9 +43,11 @@ public class DLQPPEvaluatorSimple {
         for (MsMarcoQuery query: queries) {
             evaluatedMetricValues[i] = evaluator.compute(query.getId(), targetMetric);
             qppEstimates[i] = qppMethod.computeSpecificity(query, topDocsMap.get(query.getId()), 50);
+            /*
             System.out.println(String.format(
                     "%s = %.4f, %s = %.4f",
                     qppMethod.name(), qppEstimates[i], targetMetric.name(), evaluatedMetricValues[i]));
+             */
             i++;
         }
 
@@ -57,8 +59,8 @@ public class DLQPPEvaluatorSimple {
     public static void main(String[] args) throws Exception {
         List<MsMarcoQuery> queries;
         final String resFile =
-                // Constants.BM25_Top100_DL1920
-                Constants.ColBERT_Top100_DL1920
+                Constants.BM25_Top100_DL1920
+                //Constants.ColBERT_Top100_DL1920
         ;
         final Metric[] targetMetricNames = {
                 //Metric.nDCG_1,
@@ -70,8 +72,11 @@ public class DLQPPEvaluatorSimple {
 
         QPPMethod[] qppMethods = {
                 new NQCSpecificity(retriever.getSearcher()),
-                //new RSDSpecificity(new NQCSpecificity(retriever.getSearcher())),
-                //new UEFSpecificity(new NQCSpecificity(retriever.getSearcher()))
+                new OddsRatioSpecificity(retriever.getSearcher(), 0.2f),
+                new WIGSpecificity(retriever.getSearcher()),
+                new NQCCalibratedSpecificity(retriever.getSearcher(), 1.5f, 0.25f, 0.5f),
+                new RSDSpecificity(new NQCSpecificity(retriever.getSearcher())),
+                new UEFSpecificity(new NQCSpecificity(retriever.getSearcher()))
         };
 
         queries = retriever.getQueryList();

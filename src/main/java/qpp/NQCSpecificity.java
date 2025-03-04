@@ -22,7 +22,7 @@ public class NQCSpecificity extends BaseIDFSpecificity {
         return computeNQC(q, topDocs, k);
     }
 
-    private double computeNQC(Query q, double[] rsvs, int k) {
+    public double computeNQC(Query q, double[] rsvs, int k) {
         rsvs = Arrays.stream(rsvs).limit(k).toArray();
 
         //double ref = new StandardDeviation().evaluate(rsvs);
@@ -47,14 +47,6 @@ public class NQCSpecificity extends BaseIDFSpecificity {
 
     public double computeNQC(Query q, RetrievedResults topDocs, int k) {
         return computeNQC(q, topDocs.getRSVs(k), k);
-    }
-
-    double[] getRSVs(TopDocs topDocs, int k) {
-        return Arrays.stream(topDocs.scoreDocs)
-                .limit(k) // only on top-k
-                .map(scoreDoc -> scoreDoc.score)
-                .mapToDouble(d -> d)
-                .toArray();
     }
 
     public double computeNQC(MsMarcoQuery q, TopDocs topDocs, int k) {

@@ -49,8 +49,8 @@ public class TRECDLQPPEvaluator {
 
         QPPMethod baseModel = baseQPPModelName.equals("nqc")? new NQCSpecificity(searcher): new UEFSpecificity(new NQCSpecificity(searcher));
         QPPMethod qppMethod =
-            new CoRelSpecificity(
-            //new VariantSpecificity(
+            //new CoRelSpecificity(
+            new VariantSpecificity(
                 baseModel,
                 searcher,
                 knnRelModel,

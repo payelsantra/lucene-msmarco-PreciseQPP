@@ -9,10 +9,8 @@ import org.apache.lucene.search.TopDocs;
 import retrieval.MsMarcoQuery;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+
 import qrels.RetrievedResults;
 
 public abstract class BaseIDFSpecificity implements QPPMethod {
@@ -39,6 +37,14 @@ public abstract class BaseIDFSpecificity implements QPPMethod {
             ex.printStackTrace();
         }
         return specificity;
+    }
+
+    double[] getRSVs(TopDocs topDocs, int k) {
+        return Arrays.stream(topDocs.scoreDocs)
+                .limit(k) // only on top-k
+                .map(scoreDoc -> scoreDoc.score)
+                .mapToDouble(d -> d)
+                .toArray();
     }
 
     double maxIDF(Query q) throws IOException {
