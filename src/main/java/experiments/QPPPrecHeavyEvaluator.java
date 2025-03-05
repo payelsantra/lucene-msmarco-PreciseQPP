@@ -58,12 +58,7 @@ public class QPPPrecHeavyEvaluator {
                 Constants.BM25_Top100_DL1920
                 //Constants.ColBERT_Top100_DL1920
         ;
-        final Metric[] targetMetricNames = {
-                //Metric.nDCG_1,
-                Metric.P_10,
-                //Metric.RR
-        };
-
+        Metric targetMetric = Metric.P_10;
         OneStepRetriever retriever = new OneStepRetriever(Constants.QUERIES_DL1920, resFile);
 
         QPPMethod[] qppMethods = {
@@ -86,7 +81,7 @@ public class QPPPrecHeavyEvaluator {
                         new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERIES_DL1920, false),
                         5, 0.8f
                 ),
-                new OddsRatioSpecificity(retriever.getSearcher(), 0.2f),
+                new OddsRatioSpecificity(retriever.getSearcher(), 0.4f),
                 new WIGSpecificity(retriever.getSearcher()),
                 new NQCCalibratedSpecificity(retriever.getSearcher(), 0.33f, 0.33f, 0.33f),
                 new NQCCalibratedSpecificity(retriever.getSearcher(), 0.8f, 0.1f, 0.1f),
@@ -100,22 +95,34 @@ public class QPPPrecHeavyEvaluator {
         IndexUtils.init(retriever.getSearcher());
 
         Evaluator evaluator = new Evaluator(Constants.QRELS_DL1920, resFile, 10); // Metrics for top-10
+        List<QPPMethod> evaluatedQPPModels = new ArrayList<>();
 
-        for (Metric targetMetric: targetMetricNames) {
-            double[] evaluatedMetricValues = new double[queries.size()];
-            int i=0;
-            for (MsMarcoQuery query: queries) {
-                evaluatedMetricValues[i++] = evaluator.compute(query.getId(), targetMetric);
-            }
-            System.out.println(frequencyMap(Arrays.stream(evaluatedMetricValues).boxed()));
+        double[] evaluatedMetricValues = new double[queries.size()];
+        int i=0;
+        for (MsMarcoQuery query: queries) {
+            evaluatedMetricValues[i++] = evaluator.compute(query.getId(), targetMetric);
+        }
+        System.out.println(frequencyMap(Arrays.stream(evaluatedMetricValues).boxed()));
 
-            for (QPPMethod qppMethod: qppMethods) {
-                TauAndSARE qppMetrics = evaluate(queries, qppMethod, targetMetric, evaluator, evaluatedMetricValues);
-                System.out.println(String.format("%s on %s: tau = %.4f, sare = %.4f",
-                        qppMethod.name(),
-                        targetMetric.name(),
-                        qppMetrics.tau(), qppMetrics.sare()));
-            }
+        for (QPPMethod qppMethod: qppMethods) {
+            TauAndSARE qppMetrics = evaluate(queries, qppMethod, targetMetric, evaluator, evaluatedMetricValues);
+            System.out.println(String.format("%s on %s: tau = %.4f, sare = %.4f",
+                    qppMethod.name(),
+                    targetMetric.name(),
+                    qppMetrics.tau(), qppMetrics.sare()));
+
+            qppMethod.setMeasure(qppMetrics);
+            evaluatedQPPModels.add(qppMethod);
+        }
+
+        List<QPPMethod> modelsRankedByPerfMeasure = evaluatedQPPModels.stream().sorted(
+                (o1, o2)->
+                Double.compare(o1.getMeasure().tau(), o2.getMeasure().tau())
+        )
+        .collect(Collectors.toList());
+
+        for (QPPMethod qppModel: modelsRankedByPerfMeasure) {
+            System.out.println(String.format("%s: %.4f", qppModel.name(), qppModel.getMeasure().tau()));
         }
     }
 }

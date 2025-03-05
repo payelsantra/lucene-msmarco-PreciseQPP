@@ -13,7 +13,7 @@ import java.util.*;
 
 import qrels.RetrievedResults;
 
-public abstract class BaseIDFSpecificity implements QPPMethod {
+public abstract class BaseIDFSpecificity extends BaseQPPMethod {
     IndexReader reader;
     IndexSearcher searcher;
 

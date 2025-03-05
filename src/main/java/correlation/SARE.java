@@ -1,14 +1,17 @@
 package correlation;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SARE implements QPPCorrelationMetric {
 
     class RankScore implements Comparable<RankScore> {
+        int id;
         int rank;
         double score;
 
-        RankScore(int rank, double score) { this.rank = rank; this.score = score; }
+        RankScore(int id, int rank, double score) { this.id = id; this.rank = rank; this.score = score; }
 
         @Override
         public int compareTo(RankScore o) {
@@ -17,7 +20,7 @@ public class SARE implements QPPCorrelationMetric {
 
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            sb.append("(").append(rank).append(", ").append(score).append(")");
+            sb.append("(").append(id).append("-> ").append(rank).append(", ").append(score).append(")");
             return sb.toString();
         }
     }
@@ -34,27 +37,47 @@ public class SARE implements QPPCorrelationMetric {
     }
 
     public double[] computeSAREPerQuery(double[] gt, double[] pred) {
-        double[] rankDiffs = new double[gt.length];
-        RankScore[] gt_rs = new RankScore[gt.length];
-        RankScore[] pred_rs = new RankScore[pred.length];
+        int n = gt.length;
+        double[] rankDiffs = new double[n];
+        RankScore[] gt_rs = new RankScore[n];
+        RankScore[] pred_rs = new RankScore[n];
 
-        for (int i=0; i < gt.length; i++) {
-            gt_rs[i] = new RankScore(i, gt[i]);
-            pred_rs[i] = new RankScore(i, pred[i]);
+        for (int i=0; i < n; i++) {
+            gt_rs[i] = new RankScore(i, i, gt[i]);
+            pred_rs[i] = new RankScore(i, i, pred[i]);
         }
+
+//        System.out.println();
+//        Arrays.stream(gt_rs).forEach(System.out::print);
+//        System.out.println();
+//        Arrays.stream(pred_rs).forEach(System.out::print);
+//        System.out.println();
 
         Arrays.sort(gt_rs);
         Arrays.sort(pred_rs);
 
-        double sare = 0;
-        for (int i=0; i < gt.length; i++) {
-            rankDiffs[i] = Math.abs(gt_rs[i].rank - pred_rs[i].rank)/(double)gt.length; // rank diff of ith query
+        Map<Integer, RankScore> map_gts = new HashMap<>();
+        Map<Integer, RankScore> map_preds = new HashMap<>();
+        for (int i=0; i < n; i++) {
+            gt_rs[i].rank = i;
+            pred_rs[i].rank = i;
+            map_gts.put(gt_rs[i].id, gt_rs[i]);
+            map_preds.put(pred_rs[i].id, pred_rs[i]);
+        }
+
+//        System.out.println();
+//        Arrays.stream(gt_rs).forEach(System.out::print);
+//        System.out.println();
+//        Arrays.stream(pred_rs).forEach(System.out::print);
+//        System.out.println();
+
+        for (Integer id: map_gts.keySet()) {
+            int gt_rank = map_gts.get(id).rank;
+            int pred_rank = map_preds.get(id).rank;
+//            System.out.println(id + ": " + gt_rank + ", " + pred_rank);
+            rankDiffs[id] = Math.abs(gt_rank - pred_rank)/(double)gt.length; // rank diff of ith query
         }
         return rankDiffs;
-    }
-
-    double computeSARC(double[] gt, double[] pred) { // correlation: higher the better
-        return 1-computeSARE(gt, pred);
     }
 
     double computeSARE(double[] gt, double[] pred) { // error: lower the better
