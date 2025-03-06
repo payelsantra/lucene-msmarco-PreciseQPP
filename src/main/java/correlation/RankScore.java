@@ -7,6 +7,9 @@ public class RankScore implements Comparable<RankScore> {
 
     public RankScore(int id, int rank, double score) { this.id = id; this.rank = rank; this.score = score; }
 
+    public int getId() { return id; }
+    public int getRank() { return rank; }
+
     @Override
     public int compareTo(RankScore o) {
         return Double.compare(this.score, o.score);

@@ -20,6 +20,9 @@ import java.util.*;
 import java.util.function.*;
 
 public class QPPPrecHeavyEvaluator {
+    static double DELTA = 0.01;
+    static final int MAX_PERM = 5;
+    static final int NUM_RANKINGS = 100;
 
     static <T>Map<T, Long> frequencyMap(Stream<T> elements) {
         return elements.collect(
@@ -96,14 +99,13 @@ public class QPPPrecHeavyEvaluator {
         return new TauAndSARE(evaluatedMetricValues, qppEstimates);
     }
 
-    public static double[] runExperiment(EvalMetricTieBreaker evalMetricTieBreaker)
+    public static double[] runExperiment(EvalMetricTieBreaker evalMetricTieBreaker, Metric targetMetric)
             throws Exception {
         List<MsMarcoQuery> queries;
         final String resFile =
                 Constants.BM25_Top100_DL1920
                 //Constants.ColBERT_Top100_DL1920
                 ;
-        Metric targetMetric = Metric.P_10;
         OneStepRetriever retriever = new OneStepRetriever(Constants.QUERIES_DL1920, resFile);
 
         QPPMethod[] qppMethods = {
@@ -139,7 +141,7 @@ public class QPPPrecHeavyEvaluator {
         queries = retriever.getQueryList();
         IndexUtils.init(retriever.getSearcher());
 
-        Evaluator evaluator = new Evaluator(Constants.QRELS_DL1920, resFile, 10); // Metrics for top-10
+        Evaluator evaluator = new Evaluator(Constants.QRELS_DL1920, resFile, 10); // Metrics for top-100 (P@10 is still at 10)
         List<QPPMethod> evaluatedQPPModels = new ArrayList<>();
 
         double[] evaluatedMetricValues = new double[queries.size()];
@@ -155,10 +157,10 @@ public class QPPPrecHeavyEvaluator {
                     evaluator, evaluatedMetricValues,
                     evalMetricTieBreaker
             );
-            System.out.println(String.format("%s on %s: tau = %.4f, sare = %.4f",
-                    qppMethod.name(),
-                    targetMetric.name(),
-                    qppMetrics.tau(), qppMetrics.sare()));
+//            System.out.println(String.format("%s on %s: tau = %.4f, sare = %.4f",
+//                    qppMethod.name(),
+//                    targetMetric.name(),
+//                    qppMetrics.tau(), qppMetrics.sare()));
 
             qppMethod.setMeasure(qppMetrics);
             evaluatedQPPModels.add(qppMethod);
@@ -180,18 +182,50 @@ public class QPPPrecHeavyEvaluator {
                 .toArray();
     }
 
-    public static void main(String[] args) throws Exception {
-        System.out.println("Evaluation w/o breaking ties");
-        double[] sortedQPPMeasures_notiebreaks = runExperiment(new NoTieBreaker());
-        System.out.println("Evaluation w/ tie resolution over gropus (aggregate over max " +
-                PermAggrTieBreaker.MAX_PERM + " permutations)");
-        double[] sortedQPPMeasures_withtiebreaks = runExperiment(new PermAggrTieBreaker());
+    public static double findCorrelation(EvalMetricTieBreaker evalMetricTieBreaker, Metric a, Metric b) throws Exception {
+        double[] runA = runExperiment(evalMetricTieBreaker, a);
+        double[] runB = runExperiment(evalMetricTieBreaker, b);
 
-        System.out.println(
-            String.format("Kendall's between the predictor rankings = %.4f",
-                (new KendallsCorrelation())
-                .correlation(sortedQPPMeasures_notiebreaks, sortedQPPMeasures_withtiebreaks)
-            )
-        );
+        return (new KendallsCorrelation()).correlation(runA, runB);
+    }
+
+    public static void findCorrelationsBetweenMetrics() {
+        try {
+            System.out.println("Evaluation w/o breaking ties");
+            System.out.println(
+                    String.format("Kendall's between the predictor rankings = %.4f",
+                            findCorrelation(new NoTieBreaker(), Metric.P_10, Metric.AP))
+            );
+
+            System.out.println("Evaluation w/ breaking ties");
+            System.out.println(
+                    String.format("Kendall's between the predictor rankings = %.4f",
+                            findCorrelation(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA), Metric.P_10, Metric.AP))
+            );
+        }
+        catch (Exception e) { e.printStackTrace();}
+    }
+
+    public static void findCorrelationBetweenTieResolvers() {
+        try {
+            double[] sortedQPPMeasures_notiebreaks = runExperiment(new NoTieBreaker(), Metric.P_10);
+            System.out.println("Evaluation w/ tie resolution over gropus (aggregate over max " +
+                    MAX_PERM + " permutations)");
+            //double[] sortedQPPMeasures_withtiebreaks = runExperiment(new PermAggrTieBreaker(MAX_PERM), Metric.P_10);
+            double[] sortedQPPMeasures_withtiebreaks = runExperiment(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA), Metric.P_10);
+
+            System.out.println(
+                    String.format("Kendall's between the predictor rankings = %.4f",
+                            (new KendallsCorrelation())
+                                    .correlation(sortedQPPMeasures_notiebreaks, sortedQPPMeasures_withtiebreaks)
+                    )
+            );
+        }
+        catch (Exception e) { e.printStackTrace();}
+    }
+
+    public static void main(String[] args) {
+        findCorrelationsBetweenMetrics();
+        //findCorrelationBetweenTieResolvers();
     }
 }

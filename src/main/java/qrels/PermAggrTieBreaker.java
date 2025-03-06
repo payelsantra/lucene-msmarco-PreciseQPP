@@ -8,9 +8,16 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class PermAggrTieBreaker implements EvalMetricTieBreaker {
-    public static int MAX_PERM = 5;
+    int numRankings;
+    int maxPermutations;
+    double delta;
 
-    public static Map<Double, List<RankScore>> groupTiedValues(double[] values) {
+    public PermAggrTieBreaker(int maxPermutations, int numRankings) {
+        this.maxPermutations = maxPermutations;
+        this.numRankings = numRankings;
+    }
+
+    public Map<Double, List<RankScore>> groupTiedValues(double[] values) {
         Map<Double, List<RankScore>> groups = new LinkedHashMap<>();
 
         for (int i=0; i < values.length; i++) {
@@ -24,8 +31,8 @@ public class PermAggrTieBreaker implements EvalMetricTieBreaker {
         }
 
         List<Double> tiedValues = groups.keySet().stream().collect(Collectors.toList());
-        double delta = findMinDifference(tiedValues);
-        delta /= 10;
+        delta = findMinDifference(tiedValues);
+        delta /= 100;
 
         for (Map.Entry<Double, List<RankScore>> e: groups.entrySet()) {
             List<RankScore> rslist = e.getValue();
@@ -38,18 +45,18 @@ public class PermAggrTieBreaker implements EvalMetricTieBreaker {
         return groups;
     }
 
-    public static List<List<RankScore>> generateTieResolutions(List<RankScore> group) {
+    public List<List<RankScore>> generateTieResolutions(List<RankScore> group) {
         List<List<RankScore>> permutations = new ArrayList<>();
         generatePermutationsWithMaxLimit(group, 0, permutations);
         return permutations;
     }
 
-    private static void generatePermutationsWithMaxLimit(List<RankScore> group, int start, List<List<RankScore>> result) {
+    private void generatePermutationsWithMaxLimit(List<RankScore> group, int start, List<List<RankScore>> result) {
         generatePermutations(group, start, result);
     }
 
-    private static void generatePermutations(List<RankScore> group, int start, List<List<RankScore>> result) {
-        if (result.size()==MAX_PERM)
+    private void generatePermutations(List<RankScore> group, int start, List<List<RankScore>> result) {
+        if (result.size()==maxPermutations)
             return;
 
         if (start == group.size() - 1) {
@@ -63,7 +70,7 @@ public class PermAggrTieBreaker implements EvalMetricTieBreaker {
         }
     }
 
-    public static double findMinDifference(List<Double> values) {
+    public double findMinDifference(List<Double> values) {
         // Edge case: If the array has fewer than two elements, return 0
         if (values == null || values.size() < 2) {
             throw new IllegalArgumentException("Array must have at least two elements.");
@@ -84,10 +91,6 @@ public class PermAggrTieBreaker implements EvalMetricTieBreaker {
         return minDifference;
     }
 
-    Map<Integer, List<Integer>> buildTuples(Map<Double, List<List<RankScore>>> groupedWithTieResolutions) {
-        return null;
-    }
-
     public static List<Integer> generateList(int max) {
         return IntStream.rangeClosed(0, max-1)
                 .boxed()
@@ -96,7 +99,7 @@ public class PermAggrTieBreaker implements EvalMetricTieBreaker {
 
     public static void main(String[] args) {
         double[] values = {4.2, 2.1, 4.2, 3.3, 2.1, 3.3, 4.2, 4.2, 1.0, 2.1};
-        double[][] tieResolvedValues = new PermAggrTieBreaker().transform(values);
+        double[][] tieResolvedValues = new PermAggrTieBreaker(5, 10).transform(values);
     }
 
     @Override
@@ -118,7 +121,7 @@ public class PermAggrTieBreaker implements EvalMetricTieBreaker {
             i++;
         }
 
-        //System.out.println(indexMap);
+        System.out.println(groupedWithTieResolutions);
         List<List<Integer>> crossProduct = CrossProduct.computeCrossProduct(indexMap);
 
         // Print the result
@@ -140,7 +143,8 @@ public class PermAggrTieBreaker implements EvalMetricTieBreaker {
             }
         }
 
-//        for (int i=0; i < numRankings; i++) {
+
+//        for (i=0; i < numRankings; i++) {
 //            for (int j=0; j < numValues; j++) {
 //                System.out.print(String.format("%.4f ", evalMeasureMatrix[i][j]));
 //            }
