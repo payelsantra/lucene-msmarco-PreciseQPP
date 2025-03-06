@@ -1,6 +1,7 @@
 package experiments;
 
-import org.apache.commons.lang3.ArrayUtils;
+import correlation.NDCGCorrelation;
+import correlation.QPPCorrelationMetric;
 import org.apache.commons.math3.stat.correlation.KendallsCorrelation;
 import org.apache.lucene.search.TopDocs;
 import qpp.*;
@@ -9,7 +10,7 @@ import retrieval.Constants;
 import retrieval.KNNRelModel;
 import retrieval.MsMarcoQuery;
 import retrieval.OneStepRetriever;
-import stochastic_qpp.TauAndSARE;
+import stochastic_qpp.QPPMetricBundle;
 import utils.IndexUtils;
 
 import java.util.Arrays;
@@ -20,9 +21,12 @@ import java.util.*;
 import java.util.function.*;
 
 public class QPPPrecHeavyEvaluator {
+    static final int TAU = 0;
+    static final int NDCG = 1;
     static double DELTA = 0.01;
     static final int MAX_PERM = 5;
     static final int NUM_RANKINGS = 100;
+    static final int NUM_DOCS = 10;
 
     static <T>Map<T, Long> frequencyMap(Stream<T> elements) {
         return elements.collect(
@@ -34,11 +38,11 @@ public class QPPPrecHeavyEvaluator {
         );
     }
 
-    static TauAndSARE evaluate(List<MsMarcoQuery> queries,
-                               QPPMethod qppMethod,
-                               Evaluator evaluator,
-                               double[] evaluatedMetricValues,
-                               EvalMetricTieBreaker tieBreaker) {
+    static QPPMetricBundle evaluate(List<MsMarcoQuery> queries,
+                                    QPPMethod qppMethod,
+                                    Evaluator evaluator,
+                                    double[] evaluatedMetricValues,
+                                    EvalMetricTieBreaker tieBreaker) {
         int i;
         Map<String, TopDocs> topDocsMap = evaluator.getAllRetrievedResults().castToTopDocs();
         double[][] evaluatedMetricMatrix = tieBreaker.transform(evaluatedMetricValues);
@@ -51,22 +55,27 @@ public class QPPPrecHeavyEvaluator {
             i++;
         }
 
-        List<TauAndSARE> tauAndSAREList = new ArrayList<>();
+        List<QPPMetricBundle> QPPMetricBundleList = new ArrayList<>();
         for (i=0; i < evaluatedMetricMatrix.length; i++) {
-            TauAndSARE tauAndSARE = new TauAndSARE(evaluatedMetricMatrix[i], qppEstimates);
-            tauAndSAREList.add(new TauAndSARE(evaluatedMetricMatrix[i], qppEstimates));
+            QPPMetricBundle QPPMetricBundle = new QPPMetricBundle(evaluatedMetricMatrix[i], qppEstimates);
+            QPPMetricBundleList.add(new QPPMetricBundle(evaluatedMetricMatrix[i], qppEstimates));
             //System.out.println(String.format("tau[%d] = %.4f", i, tauAndSARE.tau()));
             //System.out.println(ArrayUtils.toString(evaluatedMetricMatrix[i]));
         }
 
-        double tau_mean = tauAndSAREList.stream()
+        double tau_mean = QPPMetricBundleList.stream()
                                    .map(x -> x.tau())
                                    .mapToDouble(Double::doubleValue)
                                    .average()
                                    .orElse(0.0);
+        double ndcg_mean = QPPMetricBundleList.stream()
+                .map(x -> x.tau())
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0.0);
 
         List<double[]> perQuerySAREValuesList =
-                tauAndSAREList.stream().map(x->x.getPerQuerySARE()).collect(Collectors.toList());
+                QPPMetricBundleList.stream().map(x->x.getPerQuerySARE()).collect(Collectors.toList());
         double[] mean_sare = new double[perQuerySAREValuesList.get(0).length];
         for (double[] perQuerySAREValues: perQuerySAREValuesList) {
             for (int j=0; j < perQuerySAREValues.length; j++) {
@@ -75,12 +84,12 @@ public class QPPPrecHeavyEvaluator {
             mean_sare = Arrays.stream(mean_sare).map(x->x/perQuerySAREValues.length).toArray();
         }
 
-        return new TauAndSARE(tau_mean, mean_sare);
+        return new QPPMetricBundle(tau_mean, ndcg_mean, mean_sare);
     }
 
-    static TauAndSARE evaluate(List<MsMarcoQuery> queries,
-                         QPPMethod qppMethod,
-                         Evaluator evaluator, double[] evaluatedMetricValues) {
+    static QPPMetricBundle evaluate(List<MsMarcoQuery> queries,
+                                    QPPMethod qppMethod,
+                                    Evaluator evaluator, double[] evaluatedMetricValues) {
         int i;
         Map<String, TopDocs> topDocsMap = evaluator.getAllRetrievedResults().castToTopDocs();
 
@@ -96,11 +105,14 @@ public class QPPPrecHeavyEvaluator {
              */
             i++;
         }
-        return new TauAndSARE(evaluatedMetricValues, qppEstimates);
+        return new QPPMetricBundle(evaluatedMetricValues, qppEstimates);
     }
 
-    public static double[] runExperiment(EvalMetricTieBreaker evalMetricTieBreaker, Metric targetMetric)
-            throws Exception {
+    public static double[] runExperiment(
+            EvalMetricTieBreaker evalMetricTieBreaker,
+            Metric targetMetric, int mode)
+    throws Exception {
+
         List<MsMarcoQuery> queries;
         final String resFile =
                 Constants.BM25_Top100_DL1920
@@ -141,7 +153,7 @@ public class QPPPrecHeavyEvaluator {
         queries = retriever.getQueryList();
         IndexUtils.init(retriever.getSearcher());
 
-        Evaluator evaluator = new Evaluator(Constants.QRELS_DL1920, resFile, 10); // Metrics for top-100 (P@10 is still at 10)
+        Evaluator evaluator = new Evaluator(Constants.QRELS_DL1920, resFile, NUM_DOCS); // Metrics for top-100 (P@10 is still at 10)
         List<QPPMethod> evaluatedQPPModels = new ArrayList<>();
 
         double[] evaluatedMetricValues = new double[queries.size()];
@@ -152,7 +164,7 @@ public class QPPPrecHeavyEvaluator {
         //System.out.println(frequencyMap(Arrays.stream(evaluatedMetricValues).boxed()));
 
         for (QPPMethod qppMethod: qppMethods) {
-            TauAndSARE qppMetrics = evaluate(
+            QPPMetricBundle qppMetrics = evaluate(
                     queries, qppMethod,
                     evaluator, evaluatedMetricValues,
                     evalMetricTieBreaker
@@ -177,45 +189,48 @@ public class QPPPrecHeavyEvaluator {
 //            System.out.println(String.format("%s: %.4f", qppModel.name(), qppModel.getMeasure().tau()));
 //        }
 
-        return evaluatedQPPModels.stream()
+        return mode==TAU?
+            evaluatedQPPModels.stream()
                 .mapToDouble(x -> x.getMeasure().tau())
-                .toArray();
+                .toArray():
+            evaluatedQPPModels.stream()
+                    .mapToDouble(x -> x.getMeasure().ndcg())
+                    .toArray()
+        ;
     }
 
-    public static double findCorrelation(EvalMetricTieBreaker evalMetricTieBreaker, Metric a, Metric b) throws Exception {
-        double[] runA = runExperiment(evalMetricTieBreaker, a);
-        double[] runB = runExperiment(evalMetricTieBreaker, b);
+    public static double findCorrelation(EvalMetricTieBreaker evalMetricTieBreaker, Metric a, Metric b, int mode) throws Exception {
+        double[] runA = runExperiment(evalMetricTieBreaker, a, mode);
+        double[] runB = runExperiment(evalMetricTieBreaker, b, mode);
 
         return (new KendallsCorrelation()).correlation(runA, runB);
     }
 
-    public static void findCorrelationsBetweenMetrics() {
+    public static void findCorrelationsBetweenMetrics(EvalMetricTieBreaker tieBreaker) {
         try {
-            System.out.println("Evaluation w/o breaking ties");
+            //System.out.println("Evaluation w/o breaking ties");
             System.out.println(
-                    String.format("Kendall's between the predictor rankings = %.4f",
-                            findCorrelation(new NoTieBreaker(), Metric.P_10, Metric.AP))
+                    String.format("Kendall's between the predictor rankings ordered by tau = %.4f",
+                            findCorrelation(tieBreaker, Metric.P_10, Metric.AP, TAU))
             );
 
-            System.out.println("Evaluation w/ breaking ties");
+            //System.out.println("Evaluation w/ breaking ties");
             System.out.println(
-                    String.format("Kendall's between the predictor rankings = %.4f",
-                            findCorrelation(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA), Metric.P_10, Metric.AP))
+                    String.format("Kendall's between the predictor rankings ordered by ndcg = %.4f",
+                            findCorrelation(tieBreaker, Metric.P_10, Metric.AP, NDCG))
             );
         }
         catch (Exception e) { e.printStackTrace();}
     }
 
-    public static void findCorrelationBetweenTieResolvers() {
+    public static void findCorrelationBetweenTieResolvers(int mode) {
         try {
-            double[] sortedQPPMeasures_notiebreaks = runExperiment(new NoTieBreaker(), Metric.P_10);
-            System.out.println("Evaluation w/ tie resolution over gropus (aggregate over max " +
-                    MAX_PERM + " permutations)");
-            //double[] sortedQPPMeasures_withtiebreaks = runExperiment(new PermAggrTieBreaker(MAX_PERM), Metric.P_10);
-            double[] sortedQPPMeasures_withtiebreaks = runExperiment(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA), Metric.P_10);
+            String modename = mode==TAU?"tau":"ndcg";
+            double[] sortedQPPMeasures_notiebreaks = runExperiment(new NoTieBreaker(), Metric.P_10, mode);
+            double[] sortedQPPMeasures_withtiebreaks = runExperiment(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA), Metric.P_10, mode);
 
             System.out.println(
-                    String.format("Kendall's between the predictor rankings = %.4f",
+                    String.format("Kendall's between the predictors ranked by %s = %.4f", modename,
                             (new KendallsCorrelation())
                                     .correlation(sortedQPPMeasures_notiebreaks, sortedQPPMeasures_withtiebreaks)
                     )
@@ -225,7 +240,10 @@ public class QPPPrecHeavyEvaluator {
     }
 
     public static void main(String[] args) {
-        findCorrelationsBetweenMetrics();
-        //findCorrelationBetweenTieResolvers();
+        findCorrelationsBetweenMetrics(new NoTieBreaker());
+
+        findCorrelationBetweenTieResolvers(TAU);
+        findCorrelationBetweenTieResolvers(NDCG);
+
     }
 }

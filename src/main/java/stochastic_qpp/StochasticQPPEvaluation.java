@@ -91,18 +91,18 @@ public class StochasticQPPEvaluation {
         System.out.println();
     }
 
-    public TauAndSARE evaluateOnInitialRanking(int cutoff) {
+    public QPPMetricBundle evaluateOnInitialRanking(int cutoff) {
         double[] qppEstimates = new double[queries.size()];
         int i=0;
 
         for (MsMarcoQuery query: queries) {
             qppEstimates[i++] = qppMethod.computeSpecificity(query, topDocsMapWithoutPerturbation.get(query.getId()), cutoff);
         }
-        TauAndSARE qppMeasures = new TauAndSARE(targetMetrics, qppEstimates);
+        QPPMetricBundle qppMeasures = new QPPMetricBundle(targetMetrics, qppEstimates);
         return qppMeasures;
     }
 
-    public TauAndSARE evaluateOnSingleSample(int cutoff, int sampleId) throws IOException {
+    public QPPMetricBundle evaluateOnSingleSample(int cutoff, int sampleId) throws IOException {
         double[] qppEstimates = new double[queries.size()];
         int i=0;
         Map<String, TopDocs> topDocsMap = new HashMap<>();
@@ -139,7 +139,7 @@ public class StochasticQPPEvaluation {
             i++;
         }
 
-        TauAndSARE qppMeasures = new TauAndSARE(evaluatedMetricValues, qppEstimates);
+        QPPMetricBundle qppMeasures = new QPPMetricBundle(evaluatedMetricValues, qppEstimates);
         return qppMeasures;
     }
 
@@ -151,7 +151,7 @@ public class StochasticQPPEvaluation {
                             qppMethod.name(), targetMetric.toString())));
 
             for (int cutoff: CUTOFFS) {
-                TauAndSARE qppMetrics = evaluateAggregate(tau_w, cutoff, NUM_SAMPLES);
+                QPPMetricBundle qppMetrics = evaluateAggregate(tau_w, cutoff, NUM_SAMPLES);
                 if (qppMetrics == null) continue;
                 double delta_tau = qppMetrics.tau;
 
@@ -178,9 +178,9 @@ public class StochasticQPPEvaluation {
         this.qppMethod = qppMethod;
     }
 
-    public TauAndSARE evaluateAggregate(BufferedWriter bw, int cutoff, int numSamples) {
+    public QPPMetricBundle evaluateAggregate(BufferedWriter bw, int cutoff, int numSamples) {
         double delta_tau = 0, delta_sare[] = new double[this.queries.size()];
-        TauAndSARE qppMeasuresOnInitialRanking = null;
+        QPPMetricBundle qppMeasuresOnInitialRanking = null;
         try {
             if (!Constants.WRITE_PERMS) {
                 qppMethod.setDataSource(String.format("%s/%s.0.tsv", PreComputedPredictor.qppScoreFilePrefix, qppMethod.name()));
@@ -196,7 +196,7 @@ public class StochasticQPPEvaluation {
                 qppMethod.setDataSource(String.format("%s/%s.%d.tsv",
                         PreComputedPredictor.qppScoreFilePrefix, qppMethod.name(), sampleId));
 
-                TauAndSARE qppMeasuresOnPermutedSamples = evaluateOnSingleSample(cutoff, sampleId);
+                QPPMetricBundle qppMeasuresOnPermutedSamples = evaluateOnSingleSample(cutoff, sampleId);
                 if (qppMeasuresOnPermutedSamples == null)
                     continue;
 
@@ -222,7 +222,7 @@ public class StochasticQPPEvaluation {
             ex.printStackTrace();
         }
 
-        TauAndSARE averageQppMeasures = new TauAndSARE(delta_tau / numSamples, delta_sare);
+        QPPMetricBundle averageQppMeasures = new QPPMetricBundle(delta_tau/numSamples, 0, delta_sare);
         return averageQppMeasures;
     }
 
