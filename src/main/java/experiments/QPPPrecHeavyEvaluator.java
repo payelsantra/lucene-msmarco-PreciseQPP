@@ -2,8 +2,7 @@ package experiments;
 
 import org.apache.lucene.search.TopDocs;
 import qpp.*;
-import qrels.Evaluator;
-import qrels.Metric;
+import qrels.*;
 import retrieval.Constants;
 import retrieval.KNNRelModel;
 import retrieval.MsMarcoQuery;
@@ -31,8 +30,51 @@ public class QPPPrecHeavyEvaluator {
     }
 
     static TauAndSARE evaluate(List<MsMarcoQuery> queries,
+                               QPPMethod qppMethod,
+                               Evaluator evaluator,
+                               double[] evaluatedMetricValues,
+                               EvalMetricTieBreaker tieBreaker) {
+        int i;
+        Map<String, TopDocs> topDocsMap = evaluator.getAllRetrievedResults().castToTopDocs();
+        double[][] evaluatedMetricMatrix = tieBreaker.transform(evaluatedMetricValues);
+
+        double[] qppEstimates = new double[queries.size()];
+
+        i = 0;
+        for (MsMarcoQuery query: queries) {
+            qppEstimates[i] = qppMethod.computeSpecificity(query, topDocsMap.get(query.getId()), 50);
+            i++;
+        }
+
+        List<TauAndSARE> tauAndSAREList = new ArrayList<>();
+        for (i=0; i < evaluatedMetricMatrix.length; i++) {
+            TauAndSARE tauAndSARE = new TauAndSARE(evaluatedMetricMatrix[i], qppEstimates);
+            tauAndSAREList.add(new TauAndSARE(evaluatedMetricMatrix[i], qppEstimates));
+            System.out.println(evaluatedMetricMatrix[i]);
+            System.out.println(tauAndSARE.tau());
+        }
+
+        double tau_mean = tauAndSAREList.stream()
+                                   .map(x -> x.tau())
+                                   .mapToDouble(Double::doubleValue)
+                                   .average()
+                                   .orElse(0.0);
+
+        List<double[]> perQuerySAREValuesList =
+                tauAndSAREList.stream().map(x->x.getPerQuerySARE()).collect(Collectors.toList());
+        double[] mean_sare = new double[perQuerySAREValuesList.get(0).length];
+        for (double[] perQuerySAREValues: perQuerySAREValuesList) {
+            for (int j=0; j < perQuerySAREValues.length; j++) {
+                mean_sare[j] += perQuerySAREValues[j];
+            }
+            mean_sare = Arrays.stream(mean_sare).map(x->x/perQuerySAREValues.length).toArray();
+        }
+
+        return new TauAndSARE(tau_mean, mean_sare);
+    }
+
+    static TauAndSARE evaluate(List<MsMarcoQuery> queries,
                          QPPMethod qppMethod,
-                         Metric targetMetric,
                          Evaluator evaluator, double[] evaluatedMetricValues) {
         int i;
         Map<String, TopDocs> topDocsMap = evaluator.getAllRetrievedResults().castToTopDocs();
@@ -52,22 +94,23 @@ public class QPPPrecHeavyEvaluator {
         return new TauAndSARE(evaluatedMetricValues, qppEstimates);
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void runExperiment(EvalMetricTieBreaker evalMetricTieBreaker)
+            throws Exception {
         List<MsMarcoQuery> queries;
         final String resFile =
                 Constants.BM25_Top100_DL1920
                 //Constants.ColBERT_Top100_DL1920
-        ;
+                ;
         Metric targetMetric = Metric.P_10;
         OneStepRetriever retriever = new OneStepRetriever(Constants.QUERIES_DL1920, resFile);
 
         QPPMethod[] qppMethods = {
                 new NQCSpecificity(retriever.getSearcher()),
                 new VariantSpecificity(
-                    new NQCSpecificity(retriever.getSearcher()),
-                    retriever.getSearcher(),
-                    new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERIES_DL1920, false),
-                    5, 0.5f
+                        new NQCSpecificity(retriever.getSearcher()),
+                        retriever.getSearcher(),
+                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERIES_DL1920, false),
+                        5, 0.5f
                 ),
                 new VariantSpecificity(
                         new NQCSpecificity(retriever.getSearcher()),
@@ -102,10 +145,14 @@ public class QPPPrecHeavyEvaluator {
         for (MsMarcoQuery query: queries) {
             evaluatedMetricValues[i++] = evaluator.compute(query.getId(), targetMetric);
         }
-        System.out.println(frequencyMap(Arrays.stream(evaluatedMetricValues).boxed()));
+        //System.out.println(frequencyMap(Arrays.stream(evaluatedMetricValues).boxed()));
 
         for (QPPMethod qppMethod: qppMethods) {
-            TauAndSARE qppMetrics = evaluate(queries, qppMethod, targetMetric, evaluator, evaluatedMetricValues);
+            TauAndSARE qppMetrics = evaluate(
+                    queries, qppMethod,
+                    evaluator, evaluatedMetricValues,
+                    evalMetricTieBreaker
+            );
             System.out.println(String.format("%s on %s: tau = %.4f, sare = %.4f",
                     qppMethod.name(),
                     targetMetric.name(),
@@ -115,14 +162,23 @@ public class QPPPrecHeavyEvaluator {
             evaluatedQPPModels.add(qppMethod);
         }
 
-        List<QPPMethod> modelsRankedByPerfMeasure = evaluatedQPPModels.stream().sorted(
-                (o1, o2)->
-                Double.compare(o1.getMeasure().tau(), o2.getMeasure().tau())
-        )
-        .collect(Collectors.toList());
+        List<QPPMethod> modelsRankedByPerfMeasure =
+                evaluatedQPPModels.stream().sorted(
+                                (o1, o2)->
+                                        Double.compare(o1.getMeasure().tau(), o2.getMeasure().tau())
+                        )
+                        .collect(Collectors.toList());
 
         for (QPPMethod qppModel: modelsRankedByPerfMeasure) {
             System.out.println(String.format("%s: %.4f", qppModel.name(), qppModel.getMeasure().tau()));
         }
+    }
+
+    public static void main(String[] args) throws Exception {
+        System.out.println("Evaluation w/o breaking ties");
+        runExperiment(new NoTieBreaker());
+        System.out.println("Evaluation w/ tie resolution over gropus (aggregate over max " +
+                PermAggrTieBreaker.MAX_PERM + " permutations)");
+        runExperiment(new PermAggrTieBreaker());
     }
 }

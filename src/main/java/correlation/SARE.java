@@ -5,26 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SARE implements QPPCorrelationMetric {
-
-    class RankScore implements Comparable<RankScore> {
-        int id;
-        int rank;
-        double score;
-
-        RankScore(int id, int rank, double score) { this.id = id; this.rank = rank; this.score = score; }
-
-        @Override
-        public int compareTo(RankScore o) {
-            return Double.compare(this.score, o.score);
-        }
-
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("(").append(id).append("-> ").append(rank).append(", ").append(score).append(")");
-            return sb.toString();
-        }
-    }
-
     @Override
     public double correlation(double[] gt, double[] pred) {
         double sAre = computeSARE(gt, pred);
