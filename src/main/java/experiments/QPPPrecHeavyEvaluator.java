@@ -1,6 +1,7 @@
 package experiments;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.math3.stat.correlation.KendallsCorrelation;
 import org.apache.lucene.search.TopDocs;
 import qpp.*;
 import qrels.*;
@@ -95,7 +96,7 @@ public class QPPPrecHeavyEvaluator {
         return new TauAndSARE(evaluatedMetricValues, qppEstimates);
     }
 
-    public static void runExperiment(EvalMetricTieBreaker evalMetricTieBreaker)
+    public static double[] runExperiment(EvalMetricTieBreaker evalMetricTieBreaker)
             throws Exception {
         List<MsMarcoQuery> queries;
         final String resFile =
@@ -163,23 +164,34 @@ public class QPPPrecHeavyEvaluator {
             evaluatedQPPModels.add(qppMethod);
         }
 
-        List<QPPMethod> modelsRankedByPerfMeasure =
-                evaluatedQPPModels.stream().sorted(
-                                (o1, o2)->
-                                        Double.compare(o1.getMeasure().tau(), o2.getMeasure().tau())
-                        )
-                        .collect(Collectors.toList());
+//        List<QPPMethod> modelsRankedByPerfMeasure =
+//            evaluatedQPPModels.stream().sorted(
+//                (o1, o2)->
+//                Double.compare(o1.getMeasure().tau(), o2.getMeasure().tau())
+//            )
+//            .collect(Collectors.toList());
 
-        for (QPPMethod qppModel: modelsRankedByPerfMeasure) {
-            System.out.println(String.format("%s: %.4f", qppModel.name(), qppModel.getMeasure().tau()));
-        }
+//        for (QPPMethod qppModel: modelsRankedByPerfMeasure) {
+//            System.out.println(String.format("%s: %.4f", qppModel.name(), qppModel.getMeasure().tau()));
+//        }
+
+        return evaluatedQPPModels.stream()
+                .mapToDouble(x -> x.getMeasure().tau())
+                .toArray();
     }
 
     public static void main(String[] args) throws Exception {
-        //System.out.println("Evaluation w/o breaking ties");
-        //runExperiment(new NoTieBreaker());
+        System.out.println("Evaluation w/o breaking ties");
+        double[] sortedQPPMeasures_notiebreaks = runExperiment(new NoTieBreaker());
         System.out.println("Evaluation w/ tie resolution over gropus (aggregate over max " +
                 PermAggrTieBreaker.MAX_PERM + " permutations)");
-        runExperiment(new PermAggrTieBreaker());
+        double[] sortedQPPMeasures_withtiebreaks = runExperiment(new PermAggrTieBreaker());
+
+        System.out.println(
+            String.format("Kendall's between the predictor rankings = %.4f",
+                (new KendallsCorrelation())
+                .correlation(sortedQPPMeasures_notiebreaks, sortedQPPMeasures_withtiebreaks)
+            )
+        );
     }
 }
