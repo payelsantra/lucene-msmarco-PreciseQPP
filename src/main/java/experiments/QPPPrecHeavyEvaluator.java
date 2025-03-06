@@ -1,5 +1,6 @@
 package experiments;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.lucene.search.TopDocs;
 import qpp.*;
 import qrels.*;
@@ -50,8 +51,8 @@ public class QPPPrecHeavyEvaluator {
         for (i=0; i < evaluatedMetricMatrix.length; i++) {
             TauAndSARE tauAndSARE = new TauAndSARE(evaluatedMetricMatrix[i], qppEstimates);
             tauAndSAREList.add(new TauAndSARE(evaluatedMetricMatrix[i], qppEstimates));
-            System.out.println(evaluatedMetricMatrix[i]);
-            System.out.println(tauAndSARE.tau());
+            //System.out.println(String.format("tau[%d] = %.4f", i, tauAndSARE.tau()));
+            //System.out.println(ArrayUtils.toString(evaluatedMetricMatrix[i]));
         }
 
         double tau_mean = tauAndSAREList.stream()
@@ -175,8 +176,8 @@ public class QPPPrecHeavyEvaluator {
     }
 
     public static void main(String[] args) throws Exception {
-        System.out.println("Evaluation w/o breaking ties");
-        runExperiment(new NoTieBreaker());
+        //System.out.println("Evaluation w/o breaking ties");
+        //runExperiment(new NoTieBreaker());
         System.out.println("Evaluation w/ tie resolution over gropus (aggregate over max " +
                 PermAggrTieBreaker.MAX_PERM + " permutations)");
         runExperiment(new PermAggrTieBreaker());

@@ -106,13 +106,13 @@ public class PermAggrTieBreaker implements EvalMetricTieBreaker {
         Map<Double, List<Integer>> indexMap = new HashMap<>();
 
         int i = 0, n;
-        int numQueries = values.length;
+        int numGroups = grouped.keySet().size();
 
         for (Map.Entry<Double, List<RankScore>> e: grouped.entrySet()) {
             n = 1;
             List<List<RankScore>> tieResolutions = generateTieResolutions(e.getValue());
             groupedWithTieResolutions.put(e.getKey(), tieResolutions);
-            if (i==0 || i==numQueries-1 || i==numQueries/2)
+            if (i==0 || i==numGroups-1 || i==numGroups/2)
                 n = tieResolutions.size();
             indexMap.put(e.getKey(), generateList(n));
             i++;
