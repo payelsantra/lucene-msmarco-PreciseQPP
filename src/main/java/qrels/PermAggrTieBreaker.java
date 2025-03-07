@@ -153,4 +153,9 @@ public class PermAggrTieBreaker implements EvalMetricTieBreaker {
 
         return evalMeasureMatrix;
     }
+
+    @Override
+    public String name() {
+        return "tau-aggr";
+    }
 }

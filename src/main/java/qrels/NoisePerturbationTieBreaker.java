@@ -9,6 +9,11 @@ public class NoisePerturbationTieBreaker implements EvalMetricTieBreaker {
     public NoisePerturbationTieBreaker(int numRankings, double delta) { this.numRankings = numRankings; this.delta = delta;}
 
     @Override
+    public String name() {
+        return "tau-aggr";
+    }
+
+    @Override
     public double[][] transform(double[] values) {
         double[][] noise = new double[numRankings][values.length];
         for (int i = 0; i < numRankings; i++) {

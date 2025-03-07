@@ -13,6 +13,9 @@ import retrieval.OneStepRetriever;
 import stochastic_qpp.QPPMetricBundle;
 import utils.IndexUtils;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +46,7 @@ public class QPPPrecHeavyEvaluator {
                                     QPPMethod qppMethod,
                                     Evaluator evaluator,
                                     double[] evaluatedMetricValues,
-                                    EvalMetricTieBreaker tieBreaker) {
+                                    EvalMetricTieBreaker tieBreaker) throws IOException {
         int i;
         Map<String, TopDocs> topDocsMap = evaluator.getAllRetrievedResults().castToTopDocs();
         double[][] evaluatedMetricMatrix = tieBreaker.transform(evaluatedMetricValues);
@@ -52,31 +55,37 @@ public class QPPPrecHeavyEvaluator {
 
         i = 0;
         for (MsMarcoQuery query: queries) {
-            qppEstimates[i] = qppMethod.computeSpecificity(query, topDocsMap.get(query.getId()), 50);
-            i++;
+            qppEstimates[i++] = qppMethod.computeSpecificity(query, topDocsMap.get(query.getId()), 50);
         }
 
-        List<QPPMetricBundle> QPPMetricBundleList = new ArrayList<>();
+        List<QPPMetricBundle> qPPMetricBundleList = new ArrayList<>();
         for (i=0; i < evaluatedMetricMatrix.length; i++) {
-            QPPMetricBundle QPPMetricBundle = new QPPMetricBundle(evaluatedMetricMatrix[i], qppEstimates);
-            QPPMetricBundleList.add(new QPPMetricBundle(evaluatedMetricMatrix[i], qppEstimates));
-            //System.out.println(String.format("tau[%d] = %.4f", i, tauAndSARE.tau()));
-            //System.out.println(ArrayUtils.toString(evaluatedMetricMatrix[i]));
+            QPPMetricBundle qpMetricBundle = new QPPMetricBundle(evaluatedMetricMatrix[i], qppEstimates);
+            qPPMetricBundleList.add(qpMetricBundle);
         }
 
-        double tau_mean = QPPMetricBundleList.stream()
+        BufferedWriter bw = new BufferedWriter(new FileWriter(
+                String.format("%s.%s.tsv", qppMethod.name(), tieBreaker.name())));
+
+        for (QPPMetricBundle qppMetricBundle: qPPMetricBundleList) {
+            bw.write(String.format("%.4f\t%.4f", qppMetricBundle.tau(), qppMetricBundle.ndcg()));
+            bw.newLine();
+        }
+        bw.close();
+
+        double tau_mean = qPPMetricBundleList.stream()
                                    .map(x -> x.tau())
                                    .mapToDouble(Double::doubleValue)
                                    .average()
                                    .orElse(0.0);
-        double ndcg_mean = QPPMetricBundleList.stream()
+        double ndcg_mean = qPPMetricBundleList.stream()
                 .map(x -> x.tau())
                 .mapToDouble(Double::doubleValue)
                 .average()
                 .orElse(0.0);
 
         List<double[]> perQuerySAREValuesList =
-                QPPMetricBundleList.stream().map(x->x.getPerQuerySARE()).collect(Collectors.toList());
+                qPPMetricBundleList.stream().map(x->x.getPerQuerySARE()).collect(Collectors.toList());
         double[] mean_sare = new double[perQuerySAREValuesList.get(0).length];
         for (double[] perQuerySAREValues: perQuerySAREValuesList) {
             for (int j=0; j < perQuerySAREValues.length; j++) {
@@ -211,19 +220,19 @@ public class QPPPrecHeavyEvaluator {
     public static void findCorrelationsBetweenMetrics() {
         try {
             System.out.println(
-                String.format("Kendall's between P@10 (w/o tie breaks) and nDCG (tau): %.4f",
+                String.format("Kendall's between P@10 (w/o tie breaks) and AP/nDCG (tau): %.4f",
                     findCorrelation(new NoTieBreaker(), Metric.P_10,
                             Metric.nDCG, QPPCorrelationMode.TAU))
             );
 
             System.out.println(
-                String.format("Kendall's between P@10 (w/ tie breaks) and nDCG (tau): %.4f",
+                String.format("Kendall's between P@10 (w/ tie breaks) and AP/nDCG (tau): %.4f",
                     findCorrelation(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA),
                         Metric.P_10, Metric.nDCG, QPPCorrelationMode.TAU))
             );
 
             System.out.println(
-                String.format("Kendall's between P@10 (w/o tie breaks) and nDCG (ndcg): %.4f",
+                String.format("Kendall's between P@10 (w/o tie breaks) and AP/nDCG (ndcg): %.4f",
                     findCorrelation(new NoTieBreaker(),
                             Metric.P_10, Metric.nDCG, QPPCorrelationMode.NDCG))
             );

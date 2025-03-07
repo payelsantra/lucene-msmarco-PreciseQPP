@@ -82,4 +82,9 @@ public class SampledPermAggrTieBreaker extends PermAggrTieBreaker {
             System.out.println();
         }
     }
+
+    @Override
+    public String name() {
+        return "unused";
+    }
 }
