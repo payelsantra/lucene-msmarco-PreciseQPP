@@ -21,12 +21,13 @@ import java.util.*;
 import java.util.function.*;
 
 public class QPPPrecHeavyEvaluator {
-    static final int TAU = 0;
-    static final int NDCG = 1;
     static double DELTA = 0.01;
-    static final int MAX_PERM = 5;
-    static final int NUM_RANKINGS = 100;
-    static final int NUM_DOCS = 10;
+    static final int NUM_RANKINGS = 200;
+    static final int NUM_DOCS = 50;
+
+    enum QPPCorrelationMode {
+        TAU, NDCG
+    }
 
     static <T>Map<T, Long> frequencyMap(Stream<T> elements) {
         return elements.collect(
@@ -110,7 +111,7 @@ public class QPPPrecHeavyEvaluator {
 
     public static double[] runExperiment(
             EvalMetricTieBreaker evalMetricTieBreaker,
-            Metric targetMetric, int mode)
+            Metric targetMetric, QPPCorrelationMode mode)
     throws Exception {
 
         List<MsMarcoQuery> queries;
@@ -189,7 +190,7 @@ public class QPPPrecHeavyEvaluator {
 //            System.out.println(String.format("%s: %.4f", qppModel.name(), qppModel.getMeasure().tau()));
 //        }
 
-        return mode==TAU?
+        return mode==QPPCorrelationMode.TAU?
             evaluatedQPPModels.stream()
                 .mapToDouble(x -> x.getMeasure().tau())
                 .toArray():
@@ -199,51 +200,80 @@ public class QPPPrecHeavyEvaluator {
         ;
     }
 
-    public static double findCorrelation(EvalMetricTieBreaker evalMetricTieBreaker, Metric a, Metric b, int mode) throws Exception {
-        double[] runA = runExperiment(evalMetricTieBreaker, a, mode);
-        double[] runB = runExperiment(evalMetricTieBreaker, b, mode);
+    public static double findCorrelation(EvalMetricTieBreaker evalMetricTieBreaker,
+         Metric measureWithLikelyTies, Metric refMeasure, QPPCorrelationMode mode) throws Exception {
+        double[] runA = runExperiment(evalMetricTieBreaker, measureWithLikelyTies, mode);
+        double[] runB = runExperiment(new NoTieBreaker(), refMeasure, mode);
 
         return (new KendallsCorrelation()).correlation(runA, runB);
     }
 
-    public static void findCorrelationsBetweenMetrics(EvalMetricTieBreaker tieBreaker) {
+    public static void findCorrelationsBetweenMetrics() {
         try {
-            //System.out.println("Evaluation w/o breaking ties");
             System.out.println(
-                    String.format("Kendall's between the predictor rankings ordered by tau = %.4f",
-                            findCorrelation(tieBreaker, Metric.P_10, Metric.AP, TAU))
+                String.format("Kendall's between P@10 (w/o tie breaks) and nDCG (tau): %.4f",
+                    findCorrelation(new NoTieBreaker(), Metric.P_10,
+                            Metric.nDCG, QPPCorrelationMode.TAU))
             );
 
-            //System.out.println("Evaluation w/ breaking ties");
             System.out.println(
-                    String.format("Kendall's between the predictor rankings ordered by ndcg = %.4f",
-                            findCorrelation(tieBreaker, Metric.P_10, Metric.AP, NDCG))
+                String.format("Kendall's between P@10 (w/ tie breaks) and nDCG (tau): %.4f",
+                    findCorrelation(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA),
+                        Metric.P_10, Metric.nDCG, QPPCorrelationMode.TAU))
             );
+
+            System.out.println(
+                String.format("Kendall's between P@10 (w/o tie breaks) and nDCG (ndcg): %.4f",
+                    findCorrelation(new NoTieBreaker(),
+                            Metric.P_10, Metric.nDCG, QPPCorrelationMode.NDCG))
+            );
+
+//            System.out.println(
+//                    String.format("Kendall's between P@10 (w/ tie breaks) and nDCG (ndcg): %.4f",
+//                            findCorrelation(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA),
+//                                    Metric.P_10, Metric.nDCG, QPPCorrelationMode.NDCG))
+//            );
         }
         catch (Exception e) { e.printStackTrace();}
     }
 
-    public static void findCorrelationBetweenTieResolvers(int mode) {
+    public static void findCorrelationBetweenTieResolvers() {
         try {
-            String modename = mode==TAU?"tau":"ndcg";
-            double[] sortedQPPMeasures_notiebreaks = runExperiment(new NoTieBreaker(), Metric.P_10, mode);
-            double[] sortedQPPMeasures_withtiebreaks = runExperiment(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA), Metric.P_10, mode);
+            double[] sortedQPPMeasures_notiebreaks =
+                runExperiment(new NoTieBreaker(), Metric.P_10, QPPCorrelationMode.TAU);
+            double[] sortedQPPMeasures_withtiebreaks =
+                runExperiment(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA), Metric.P_10, QPPCorrelationMode.TAU);
+
+            double[] sortedQPPMeasures_ndcg =
+                runExperiment(new NoTieBreaker(), Metric.P_10, QPPCorrelationMode.NDCG);
 
             System.out.println(
-                    String.format("Kendall's between the predictors ranked by %s = %.4f", modename,
-                            (new KendallsCorrelation())
-                                    .correlation(sortedQPPMeasures_notiebreaks, sortedQPPMeasures_withtiebreaks)
-                    )
+                String.format("tau (orig, tie-break): %.4f",
+                (new KendallsCorrelation())
+                .correlation(sortedQPPMeasures_notiebreaks, sortedQPPMeasures_withtiebreaks)
+                )
+            );
+
+            System.out.println(
+                String.format("tau (tie-break, ndcg): %.4f",
+                    (new KendallsCorrelation())
+                    .correlation(sortedQPPMeasures_withtiebreaks, sortedQPPMeasures_ndcg)
+                )
+            );
+
+            System.out.println(
+                String.format("tau (orig, ndcg): %.4f",
+                (new KendallsCorrelation())
+                .correlation(sortedQPPMeasures_notiebreaks, sortedQPPMeasures_ndcg)
+                )
             );
         }
         catch (Exception e) { e.printStackTrace();}
     }
 
     public static void main(String[] args) {
-        findCorrelationsBetweenMetrics(new NoTieBreaker());
+        //findCorrelationsBetweenMetrics();
 
-        findCorrelationBetweenTieResolvers(TAU);
-        findCorrelationBetweenTieResolvers(NDCG);
-
+        findCorrelationBetweenTieResolvers();
     }
 }
