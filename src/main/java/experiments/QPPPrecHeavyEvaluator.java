@@ -74,12 +74,12 @@ public class QPPPrecHeavyEvaluator {
         bw.close();
 
         double tau_mean = qPPMetricBundleList.stream()
-                                   .map(x -> x.tau())
-                                   .mapToDouble(Double::doubleValue)
-                                   .average()
-                                   .orElse(0.0);
+               .map(x -> x.tau())
+               .mapToDouble(Double::doubleValue)
+               .average()
+               .orElse(0.0);
         double ndcg_mean = qPPMetricBundleList.stream()
-                .map(x -> x.tau())
+                .map(x -> x.ndcg())
                 .mapToDouble(Double::doubleValue)
                 .average()
                 .orElse(0.0);
