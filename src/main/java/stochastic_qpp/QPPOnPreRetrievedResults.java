@@ -10,6 +10,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.store.FSDirectory;
 import qpp.*;
+import qrels.AllRetrievedResults;
 import qrels.Metric;
 import qrels.PreEvaluatedResults;
 import retrieval.Constants;
@@ -27,6 +28,11 @@ public class QPPOnPreRetrievedResults {
     PreEvaluatedResults preEvaluatedResults;
     QPPCorrelationMetric qppCorrelationMetric;
     static Map<String, Float> inducedDocScoreCache = new HashMap<>();
+
+    public QPPOnPreRetrievedResults(IndexReader reader, String resFile, String queryFile) throws Exception {
+        System.out.println("Loading results from " + resFile);
+        preRetrievedResults = new PreRetrievedResults(reader, resFile, queryFile, inducedDocScoreCache);
+    }
 
     public QPPOnPreRetrievedResults(IndexReader reader, String resFile, String evalResFile, String queryFile) throws Exception {
         System.out.println("Loading results from " + resFile);

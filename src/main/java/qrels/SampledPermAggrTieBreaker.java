@@ -8,8 +8,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class SampledPermAggrTieBreaker extends PermAggrTieBreaker {
-    static int SEED = 314159265;
-    static Random random = new Random(SEED);
+    static int[] SEEDS = { 314159265, 1414213 };
+    static Random random = new Random(SEEDS[0]);
     public SampledPermAggrTieBreaker(int maxPermutations, int numRankings) { super(maxPermutations, numRankings); }
 
     @Override

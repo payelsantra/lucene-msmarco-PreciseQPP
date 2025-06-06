@@ -31,7 +31,10 @@ public class OneStepRetriever {
     String resFile;
     String analyzerName;
 
-    public OneStepRetriever(String queryFile, String resFile, String analyzerName) throws Exception {
+    public OneStepRetriever(String indexDir,
+                            String queryFile,
+                            String resFile,
+                            String analyzerName) throws Exception {
         this.analyzerName = analyzerName;
         reader = DirectoryReader.open(FSDirectory.open(new File(Constants.MSMARCO_INDEX).toPath()));
         searcher = new IndexSearcher(reader);
@@ -44,12 +47,16 @@ public class OneStepRetriever {
         this.resFile = resFile;
     }
 
-    public OneStepRetriever(String queryFile) throws Exception {
-        this(queryFile, new File(queryFile).getName() + ".res", "english");
+    public OneStepRetriever(String queryFile, String resFile, String analyzerName) throws Exception {
+        this(Constants.MSMARCO_INDEX, queryFile, resFile, analyzerName);
     }
 
-    public OneStepRetriever(String queryFile, String resFile) throws Exception {
-        this(queryFile, resFile, "english");
+    public OneStepRetriever(String indexDir, String queryFile) throws Exception {
+        this(indexDir, queryFile, new File(queryFile).getName() + ".res", "english");
+    }
+
+    public OneStepRetriever(String queryFile) throws Exception {
+        this(Constants.MSMARCO_INDEX, queryFile, new File(queryFile).getName() + ".res", "english");
     }
 
     public Map<String, String> getQueryMap() { return queries; }
@@ -221,13 +228,12 @@ public class OneStepRetriever {
     public static void main(String[] args) throws Exception {
         if (args.length < 3) {
             args = new String[3];
-            args[0] = Constants.QUERY_FILE_TEST;
-            args[1] = "1000";
-            args[2] = "english";
-            System.out.println("<query file> <mu (LM-Dirichlet)> <english/whitespace> (no stopword removal or stemming for the latter)");
+            args[0] = Constants.MSMARCO_INDEX;
+            args[1] = Constants.QUERY_FILE_TEST;
+            args[2] = "1000";
         }
-        OneStepRetriever oneStepRetriever = new OneStepRetriever(args[0]);
-        oneStepRetriever.retrieve(Float.parseFloat(args[1]));
+        OneStepRetriever oneStepRetriever = new OneStepRetriever(args[0], args[1]);
+        oneStepRetriever.retrieve(Float.parseFloat(args[2]));
 
         oneStepRetriever.reader.close();
     }

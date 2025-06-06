@@ -25,6 +25,8 @@ public class KLDivReranker implements PostFdbkReranker {
             klDiv = 0;
             klDivScoreDocs[i] = new ScoreDoc(topDocs.scoreDocs[i].doc, klDiv);
             PerDocTermVector docVector = this.retrievedDocsTermStats.docTermVecs.get(topDocs.scoreDocs[i].doc);
+            if (docVector==null)
+                continue;
 
             // For each v \in V (vocab of top ranked documents)
             for (RetrievedDocTermInfo w: retrievedDocsTermStats.termStats.values()) {

@@ -164,6 +164,21 @@ public class AllRetrievedResults {
         this.allRelInfo = relInfo;
     }
 
+    public TopDocs castToTopDocs(String qid) {
+        List<ScoreDoc> scoreDocs = new ArrayList<>();
+        RetrievedResults rr = allRetMap.get(qid);
+        int numret = rr.rtuples.size();
+        for (ResultTuple tuple: rr.rtuples) {
+            int docOffset = IndexUtils.getDocOffsetFromId(tuple.docName);
+            if (docOffset>0)
+                scoreDocs.add(new ScoreDoc(docOffset, (float)tuple.score));
+        }
+        ScoreDoc[] scoreDocArray = new ScoreDoc[scoreDocs.size()];
+        scoreDocArray = scoreDocs.toArray(scoreDocArray);
+        TopDocs topDocs = new TopDocs(new TotalHits(numret, TotalHits.Relation.EQUAL_TO), scoreDocArray);
+        return topDocs;
+    }
+
     public Map<String, TopDocs> castToTopDocs() {
         Map<String, TopDocs> topDocsMap = new HashMap<>();
         for (RetrievedResults rr: allRetMap.values()) {

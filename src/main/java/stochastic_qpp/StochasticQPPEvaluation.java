@@ -235,7 +235,7 @@ public class StochasticQPPEvaluation {
             "R"
         };
 
-        final Metric[] targetMetricNames = {Metric.AP /*, Metric.nDCG Metric.RR*/};
+        final Metric[] targetMetricNames = {Metric.AP, /*, Metric.nDCG Metric.RR*/};
 
         for (Metric m: targetMetricNames) {
             for (String samplingMode : samplingModes) {

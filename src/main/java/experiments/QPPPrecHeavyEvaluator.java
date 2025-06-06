@@ -24,8 +24,8 @@ import java.util.*;
 import java.util.function.*;
 
 public class QPPPrecHeavyEvaluator {
-    static double DELTA = 0.01;
-    static final int NUM_RANKINGS = 200;
+    static double DELTA = 0.05;
+    static final int NUM_RANKINGS = 500;
     static final int NUM_DOCS = 50;
 
     enum QPPCorrelationMode {
@@ -125,29 +125,30 @@ public class QPPPrecHeavyEvaluator {
 
         List<MsMarcoQuery> queries;
         final String resFile =
-                Constants.BM25_Top100_DL1920
+                //Constants.BM25_Top100_DL1920
+                "pass_2019.queries.res"
                 //Constants.ColBERT_Top100_DL1920
                 ;
-        OneStepRetriever retriever = new OneStepRetriever(Constants.QUERIES_DL1920, resFile);
+        OneStepRetriever retriever = new OneStepRetriever(Constants.QUERY_FILE_TEST, resFile, "english");
 
         QPPMethod[] qppMethods = {
                 new NQCSpecificity(retriever.getSearcher()),
                 new VariantSpecificity(
                         new NQCSpecificity(retriever.getSearcher()),
                         retriever.getSearcher(),
-                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERIES_DL1920, false),
+                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERY_FILE_TEST, false),
                         5, 0.5f
                 ),
                 new VariantSpecificity(
                         new NQCSpecificity(retriever.getSearcher()),
                         retriever.getSearcher(),
-                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERIES_DL1920, false),
+                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERY_FILE_TEST, false),
                         5, 0.2f
                 ),
                 new VariantSpecificity(
                         new NQCSpecificity(retriever.getSearcher()),
                         retriever.getSearcher(),
-                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERIES_DL1920, false),
+                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERY_FILE_TEST, false),
                         5, 0.8f
                 ),
                 new OddsRatioSpecificity(retriever.getSearcher(), 0.4f),
@@ -163,7 +164,7 @@ public class QPPPrecHeavyEvaluator {
         queries = retriever.getQueryList();
         IndexUtils.init(retriever.getSearcher());
 
-        Evaluator evaluator = new Evaluator(Constants.QRELS_DL1920, resFile, NUM_DOCS); // Metrics for top-100 (P@10 is still at 10)
+        Evaluator evaluator = new Evaluator(Constants.QRELS_TEST, resFile, NUM_DOCS); // Metrics for top-100 (P@10 is still at 10)
         List<QPPMethod> evaluatedQPPModels = new ArrayList<>();
 
         double[] evaluatedMetricValues = new double[queries.size()];
@@ -179,10 +180,10 @@ public class QPPPrecHeavyEvaluator {
                     evaluator, evaluatedMetricValues,
                     evalMetricTieBreaker
             );
-//            System.out.println(String.format("%s on %s: tau = %.4f, sare = %.4f",
-//                    qppMethod.name(),
-//                    targetMetric.name(),
-//                    qppMetrics.tau(), qppMetrics.sare()));
+            System.out.println(String.format("%s on %s: tau = %.4f, nDCG = %.4f",
+                    qppMethod.name(),
+                    targetMetric.name(),
+                    qppMetrics.tau(), qppMetrics.ndcg()));
 
             qppMethod.setMeasure(qppMetrics);
             evaluatedQPPModels.add(qppMethod);
@@ -222,13 +223,13 @@ public class QPPPrecHeavyEvaluator {
             System.out.println(
                 String.format("Kendall's between P@10 (w/o tie breaks) and AP/nDCG (tau): %.4f",
                     findCorrelation(new NoTieBreaker(), Metric.P_10,
-                            Metric.nDCG, QPPCorrelationMode.TAU))
+                            Metric.AP, QPPCorrelationMode.TAU))
             );
 
             System.out.println(
                 String.format("Kendall's between P@10 (w/ tie breaks) and AP/nDCG (tau): %.4f",
                     findCorrelation(new NoisePerturbationTieBreaker(NUM_RANKINGS, DELTA),
-                        Metric.P_10, Metric.nDCG, QPPCorrelationMode.TAU))
+                        Metric.P_10, Metric.AP, QPPCorrelationMode.TAU))
             );
 
             System.out.println(
@@ -281,8 +282,8 @@ public class QPPPrecHeavyEvaluator {
     }
 
     public static void main(String[] args) {
-        //findCorrelationsBetweenMetrics();
+        findCorrelationsBetweenMetrics();
 
-        findCorrelationBetweenTieResolvers();
+        //findCorrelationBetweenTieResolvers();
     }
 }
