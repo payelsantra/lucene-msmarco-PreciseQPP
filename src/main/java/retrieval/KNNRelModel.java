@@ -46,7 +46,6 @@ public class KNNRelModel extends SupervisedRLM {
     Map<String, MsMarcoQuery> queryMap;
     Map<String, List<MsMarcoQuery>> knnQueryMap;
 
-
     static Analyzer analyzer = MsMarcoIndexer.constructAnalyzer();
 
     public IndexSearcher getQueryIndexSearcher() { return qIndexSearcher; }
@@ -59,6 +58,16 @@ public class KNNRelModel extends SupervisedRLM {
         qIndexSearcher = new IndexSearcher(qIndexReader);
         qIndexSearcher.setSimilarity(new LMDirichletSimilarity(Constants.MU));
         queryMap = constructQueries(queryFile);
+    }
+
+    public KNNRelModel(String queryFile) throws Exception {
+        super(queryFile);
+    }
+
+    public KNNRelModel() throws Exception {
+        qIndexReader = DirectoryReader.open(FSDirectory.open(new File(Constants.MSMARCO_QUERY_INDEX).toPath()));
+        qIndexSearcher = new IndexSearcher(qIndexReader);
+        qIndexSearcher.setSimilarity(new LMDirichletSimilarity(Constants.MU));
     }
 
     public KNNRelModel(String qrelFile, String queryFile) throws Exception {
@@ -407,6 +416,16 @@ public class KNNRelModel extends SupervisedRLM {
         );
 
         return qb.build();
+    }
+
+    void findKNNOfQueries(MsMarcoQuery testQuery, BufferedWriter bw) throws Exception {
+        List<MsMarcoQuery> knnQueries = testQuery.retrieveSimilarQueries(getQueryIndexSearcher(), 20);
+        int rank = 1;
+        for (MsMarcoQuery nn: knnQueries) {
+            bw.write(String.format("%s\tQ0\t%s\t%d\t%.4f\t%s",
+                    testQuery.qid, nn.qid, rank++, nn.simWithOrig, testQuery.qText + "| " + nn.qText));
+            bw.newLine();
+        }
     }
 
     void findKNNOfQueries(String trecDLQueryFile, String outJSONFile) throws Exception {

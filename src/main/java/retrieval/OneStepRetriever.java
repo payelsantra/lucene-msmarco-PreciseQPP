@@ -13,10 +13,7 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
 import qrels.PerQueryRelDocs;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,6 +27,8 @@ public class OneStepRetriever {
     List<MsMarcoQuery> queryList;
     String resFile;
     String analyzerName;
+
+    public OneStepRetriever() {}
 
     public OneStepRetriever(String indexDir,
                             String queryFile,
@@ -71,6 +70,21 @@ public class OneStepRetriever {
                         )
                 ;
     }
+
+    public List<MsMarcoQuery> loadQueriesAsList(String queryFile) throws Exception {
+        BufferedReader br = new BufferedReader(new FileReader(queryFile));
+        String line;
+        List<MsMarcoQuery> qList = new ArrayList<>();
+
+        while ((line=br.readLine())!=null) {
+            String[] tokens = line.split("\t");
+            qList.add(new MsMarcoQuery(tokens[0], tokens[1]));
+        }
+        br.close();
+
+        return qList;
+    }
+
 
     public Query makeQuery(MsMarcoQuery query) throws Exception {
         String queryText = query.qText;

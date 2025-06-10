@@ -72,6 +72,7 @@ public interface Constants {
     String QUERIES_MSMARCO_DEV_SMALL = "data/queries.dev.small.tsv";
     String QRELS_MSMARCO_DEV = "data/qrels.dev.tsv";
     String QUERIES_MSMARCO_DEV = "data/queries.dev.tsv";
+    String QUERIES_MSMARCO_TRAIN = "data/queries.train.tsv";
 
     //String QUERIES_DL1920 = "data/trecdl/pass_2019.queries.small"; // for unit test
     String BM25_Top100_DL1920 = "stochastic-qpp/trecdl1920.bm25.res";

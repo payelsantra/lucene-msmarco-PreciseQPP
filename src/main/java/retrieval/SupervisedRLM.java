@@ -24,6 +24,12 @@ public class SupervisedRLM extends OneStepRetriever {
 
     static final String DELIM = "^";
 
+    public SupervisedRLM() { }
+
+    SupervisedRLM(String queryFile) throws Exception {
+        super(queryFile);
+    }
+
     SupervisedRLM(String qrelFile, String queryFile) throws Exception {
         super(queryFile);
         rels = new AllRelRcds(qrelFile);
@@ -117,17 +123,6 @@ public class SupervisedRLM extends OneStepRetriever {
         double l2Norm = TermDistribution.l2Norm(idfWeighted);
         return idfWeighted.entrySet().stream().collect(Collectors.toMap(e->e.getKey(), e->e.getValue()/l2Norm));
     }
-
-    List<MsMarcoQuery> loadQueriesAsList(String queryFile) throws Exception {
-        return
-            FileUtils.readLines(new File(queryFile), StandardCharsets.UTF_8)
-            .stream()
-            .map(x -> x.split("\t"))
-            .map(x -> new MsMarcoQuery(x[0], x[1]))
-            .collect(Collectors.toList())
-        ;
-    }
-
 
     void prune() {
         for (TermDistribution td: termDistributions.values()) {
