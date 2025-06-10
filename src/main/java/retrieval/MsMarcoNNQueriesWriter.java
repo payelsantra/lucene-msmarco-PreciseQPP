@@ -23,7 +23,7 @@ public class MsMarcoNNQueriesWriter {
 
             numQueries++;
             if (numQueries%5000 == 0)
-                System.out.println("Saved NN records for %d queries\r");
+                System.out.println(String.format("Saved NN records for %d queries\r", numQueries));
         }
 
         br.close();
