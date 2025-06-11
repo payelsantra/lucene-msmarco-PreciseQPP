@@ -19,7 +19,7 @@ public class MsMarcoNNQueriesWriter {
         while ((line=br.readLine())!=null) {
             String[] tokens = line.split("\t");
             MsMarcoQuery q = new MsMarcoQuery(tokens[0], tokens[1]);
-            knnRelModel.findKNNOfQueries(q, bw);
+            knnRelModel.findKNNOfQueriesAndComputeRBO(q, bw);
 
             numQueries++;
             if (numQueries%5000 == 0)

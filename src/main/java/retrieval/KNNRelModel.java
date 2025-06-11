@@ -428,6 +428,20 @@ public class KNNRelModel extends SupervisedRLM {
         }
     }
 
+    void findKNNOfQueriesAndComputeRBO(MsMarcoQuery testQuery, BufferedWriter bw) throws Exception {
+        TopDocs topDocsA = this.qIndexSearcher.search(testQuery.getQuery(), 20);
+        List<MsMarcoQuery> knnQueries = testQuery.retrieveSimilarQueries(getQueryIndexSearcher(), 20);
+        int rank = 1;
+        for (MsMarcoQuery nn: knnQueries) {
+            TopDocs topDocsB = this.qIndexSearcher.search(nn.getQuery(), 20);
+            nn.simWithOrig = (float)OverlapStats.computeRBO(topDocsA, topDocsB);
+
+            bw.write(String.format("%s\tQ0\t%s\t%d\t%.4f\t%s",
+                    testQuery.qid, nn.qid, rank++, nn.simWithOrig, testQuery.qText + "| " + nn.qText));
+            bw.newLine();
+        }
+    }
+
     void findKNNOfQueries(String trecDLQueryFile, String outJSONFile) throws Exception {
         Map<String, String> testQueries =
         loadQueries(trecDLQueryFile)
