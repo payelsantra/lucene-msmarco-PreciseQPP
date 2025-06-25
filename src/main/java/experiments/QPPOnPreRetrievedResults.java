@@ -16,23 +16,32 @@ import java.io.*;
 import java.util.*;
 
 public class QPPOnPreRetrievedResults {
-    static final String BM25_MSMARCO_DEV_TOP100 = "runs/bm25_100_msmarcodev.res";
+    // static final String BM25_MSMARCO_DEV_TOP100 = "runs/bm25_100_msmarcodev.res";
 
     public static void main(String[] args) throws Exception {
+        if (args.length < 2) {
+            System.err.println("Arguments expected: <query file> <TREC formatted res file>");
+            return;
+        }
+
+        String queryFile = args[0];
+        String resFile = args[1];
+
         IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(Constants.MSMARCO_INDEX).toPath()));
         IndexSearcher searcher = new IndexSearcher(reader);
         searcher.setSimilarity(new BM25Similarity());
         IndexUtils.init(searcher);
 
-        Map<String, MsMarcoQuery> queryMap = QueryLoader.constructQueryMap(Constants.QUERIES_MSMARCO_DEV);
-        AllRetrievedResults allRetrievedResults = new AllRetrievedResults(new File(BM25_MSMARCO_DEV_TOP100).getPath(), true);
+        Map<String, MsMarcoQuery> queryMap = QueryLoader.constructQueryMap(queryFile);
+        AllRetrievedResults allRetrievedResults = new AllRetrievedResults(new File(resFile).getPath(), true);
 
-        BufferedWriter bw = new BufferedWriter(new FileWriter("qppres/bm25.res"));
+        BufferedWriter bw = new BufferedWriter(new FileWriter(resFile + ".qpp"));
 
         final QPPMethod[] qppMethods = {
                 new NQCSpecificity(searcher),
                 new UEFSpecificity(new NQCSpecificity(searcher)),
-                new RSDSpecificity(new NQCSpecificity(searcher))
+                new RSDSpecificity(new NQCSpecificity(searcher)),
+                new OddsRatioSpecificity(searcher, 0.4f),
         };
 
         int count = 0;
