@@ -187,6 +187,7 @@ public class KNNRelModel extends SupervisedRLM {
 
     public List<MsMarcoQuery> getKNNs(MsMarcoQuery q, int k) {
         List<MsMarcoQuery> knnQueries = knnQueryMap.get(q.getId());
+        if (knnQueries==null) return null;
         return knnQueries.subList(0, Math.min(k, knnQueries.size()));
     }
 

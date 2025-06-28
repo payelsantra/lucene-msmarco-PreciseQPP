@@ -68,6 +68,9 @@ public interface Constants {
     String QRELS_DL1920 = "data/trecdl/trecdl1920.qrels";
     String QUERIES_DL1920 = "data/trecdl/trecdl1920.queries";
 
+    String QUERIES_DL19 = "data/trecdl/pass_2019.queries";
+    String QUERIES_DL20 = "data/trecdl/pass_2020.queries";
+
     String QRELS_MSMARCO_DEV_SMALL = "data/qrels.dev.small.tsv";
     String QUERIES_MSMARCO_DEV_SMALL = "data/queries.dev.small.tsv";
     String QRELS_MSMARCO_DEV = "data/qrels.dev.tsv";

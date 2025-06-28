@@ -22,7 +22,9 @@ public class QPPOnPreRetrievedResults {
     public static void main(String[] args) throws Exception {
         if (args.length < 2) {
             System.err.println("Arguments expected: <query file> <TREC formatted res file>");
-            return;
+            args = new String[2];
+            args[0] = Constants.QUERIES_DL20;
+            args[1] = "../pyqppeval/data/runs/2020/BM25.2020.res";
         }
 
         String queryFile = args[0];
