@@ -7,6 +7,7 @@ import org.apache.lucene.store.FSDirectory;
 import qpp.*;
 import qrels.AllRetrievedResults;
 import retrieval.Constants;
+import retrieval.KNNRelModel;
 import retrieval.MsMarcoQuery;
 import retrieval.QueryLoader;
 import stochastic_qpp.*;
@@ -42,6 +43,14 @@ public class QPPOnPreRetrievedResults {
                 new UEFSpecificity(new NQCSpecificity(searcher)),
                 new RSDSpecificity(new NQCSpecificity(searcher)),
                 new OddsRatioSpecificity(searcher, 0.4f),
+                new WIGSpecificity(searcher),
+                new NQCCalibratedSpecificity(searcher, 0.33f, 0.33f, 0.33f),
+                new VariantSpecificity(
+                        new NQCSpecificity(searcher),
+                        searcher,
+                        new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERY_FILE_TEST, false),
+                        5, 0.2f
+                ),
         };
 
         int count = 0;
