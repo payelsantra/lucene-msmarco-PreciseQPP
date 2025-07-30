@@ -40,6 +40,7 @@ public class QPPOnPreRetrievedResults {
 
         BufferedWriter bw = new BufferedWriter(new FileWriter(resFile + ".qpp"));
 
+        /*
         final QPPMethod[] qppMethods = {
                 new NQCSpecificity(searcher),
                 new UEFSpecificity(new NQCSpecificity(searcher)),
@@ -54,11 +55,21 @@ public class QPPOnPreRetrievedResults {
                         5, 0.2f
                 ),
         };
+        */
+
+        ChunkedMMapEmbeddingReader denseVecReader =
+            new ChunkedMMapEmbeddingReader(Constants.COLL_DENSEVEC_FILE_CONTRIEVER, Constants.RECORCDS_PER_CHUNK);
+        Map<Long, double[]> queryVecs = QueryVecLoader.loadEmbeddings(Constants.DL20_CONTRIEVER_VECS);
+
+        final QPPMethod[] qppMethods = {
+                new DenseVecSpecificity(denseVecReader, queryVecs),
+                new DenseVecMatryoskaSpecificity(denseVecReader, queryVecs)
+        };
 
         int count = 0;
         for (String qid: allRetrievedResults.queries()) {
-            if (count++ % 1000 == 0)
-                System.out.println(String.format("QPP completed for %d queries\r", count));
+            if (count++ % 5 == 0)
+                System.out.print(String.format("QPP completed for %d queries\r", count));
 
             StringBuilder sb = new StringBuilder();
             sb.append(qid).append("\t");

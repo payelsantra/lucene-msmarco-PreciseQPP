@@ -87,4 +87,8 @@ public interface Constants {
     int NUM_SHUFFLES = 50;
     boolean TOPDOC_ALWAYS_SWAPPED = true;
 
+    String COLL_DENSEVEC_FILE_CONTRIEVER = "denseqpp/msmarco_doc_embeddings_768d.bin";
+    String DL19_CONTRIEVER_VECS = "denseqpp/trec_dl2019_embeddings_dict_768d.bin";
+    String DL20_CONTRIEVER_VECS = "denseqpp/trec_dl2020_embeddings_dict_768d.bin";
+    int RECORCDS_PER_CHUNK = 10_000;
 }
