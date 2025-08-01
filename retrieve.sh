@@ -1,9 +1,13 @@
 #!/bin/bash
 
-if [ $# -lt 1 ]
+if [ $# -lt 2 ]
 then
-        echo "Usage: $0 <res file name>"
+        echo "Usage: $0 <index dir> <query file>"
         exit
 fi
 
-mvn exec:java -Dexec.mainClass="retrieval.SupervisedRLM" -Dexec.args="$1"
+INDEX_DIR=$1
+QUERY_FILE=$2
+
+#mvn exec:java -Dexec.mainClass="retrieval.SupervisedRLM" -Dexec.args="$1"
+mvn exec:java -Dexec.mainClass="retrieval.OneStepRetriever" -Dexec.args="$INDEX_DIR $QUERY_FILE 1000"

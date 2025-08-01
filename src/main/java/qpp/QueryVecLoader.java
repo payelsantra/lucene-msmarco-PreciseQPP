@@ -1,51 +1,47 @@
 package qpp;
 import retrieval.Constants;
-
 import java.io.*;
 import java.nio.*;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
 public class QueryVecLoader {
-    public static Map<Long, double[]> loadEmbeddings(String path) throws IOException {
-        Map<Long, double[]> embeddings = new HashMap<>();
+    private static final int VECTOR_DIM = 768;
+    private static final int RECORD_SIZE = 4 + VECTOR_DIM * 4;  // 4 bytes for int ID + 768 * 4 bytes for float vector
+
+    public static Map<Integer, float[]> load(String path) throws IOException {
+        Map<Integer, float[]> embeddingMap = new HashMap<>();
 
         try (FileInputStream fis = new FileInputStream(path);
              FileChannel channel = fis.getChannel()) {
 
-            // Each record is 8 (ID) + 768*8 (vector) = 6152 bytes
-            ByteBuffer buffer = ByteBuffer.allocate(6152);
-            buffer.order(ByteOrder.LITTLE_ENDIAN);  // PyTorch writes in little-endian
+            long fileSize = channel.size();
+            MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, fileSize);
+            buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-            while (channel.read(buffer) == 6152) {
-                buffer.flip();
+            while (buffer.remaining() >= RECORD_SIZE) {
+                int docId = buffer.getInt();
 
-                // Read ID (int64)
-                long id = buffer.getLong();
-
-                // Read 768 float64 values
-                double[] vec = new double[768];
-                for (int i = 0; i < 768; i++) {
-                    vec[i] = buffer.getDouble();
+                float[] vec = new float[VECTOR_DIM];
+                for (int i = 0; i < VECTOR_DIM; i++) {
+                    vec[i] = buffer.getFloat();
                 }
 
-                embeddings.put(id, vec);
-                buffer.clear();
+                embeddingMap.put(docId, vec);
             }
         }
-
-        return embeddings;
+        return embeddingMap;
     }
 
-    // Example usage
     public static void main(String[] args) throws IOException {
-        Map<Long, double[]> embeddings = loadEmbeddings(Constants.DL20_CONTRIEVER_VECS);
+        Map<Integer, float[]> embeddings = QueryVecLoader.load(Constants.DL20_CONTRIEVER_VECS);
 
         // Print one example
         embeddings.entrySet().stream().forEach(entry -> {
             System.out.println(entry.getKey() + Arrays.toString(Arrays.copyOf(entry.getValue(), 10)));
         });
-
-
     }
 }
+
+
+

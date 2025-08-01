@@ -40,7 +40,10 @@ public class QPPOnPreRetrievedResults {
 
         BufferedWriter bw = new BufferedWriter(new FileWriter(resFile + ".qpp"));
 
-        /*
+        DocVectorReader denseVecReader =
+                new DocVectorReader(Constants.COLL_DENSEVEC_FILE_CONTRIEVER);
+        Map<Integer, float[]> queryVecs = QueryVecLoader.load(Constants.DL20_CONTRIEVER_VECS);
+
         final QPPMethod[] qppMethods = {
                 new NQCSpecificity(searcher),
                 new UEFSpecificity(new NQCSpecificity(searcher)),
@@ -54,14 +57,6 @@ public class QPPOnPreRetrievedResults {
                         new KNNRelModel(Constants.QRELS_TRAIN, Constants.QUERY_FILE_TEST, false),
                         5, 0.2f
                 ),
-        };
-        */
-
-        ChunkedMMapEmbeddingReader denseVecReader =
-            new ChunkedMMapEmbeddingReader(Constants.COLL_DENSEVEC_FILE_CONTRIEVER, Constants.RECORCDS_PER_CHUNK);
-        Map<Long, double[]> queryVecs = QueryVecLoader.loadEmbeddings(Constants.DL20_CONTRIEVER_VECS);
-
-        final QPPMethod[] qppMethods = {
                 new DenseVecSpecificity(denseVecReader, queryVecs),
                 new DenseVecMatryoskaSpecificity(denseVecReader, queryVecs)
         };
@@ -86,5 +81,6 @@ public class QPPOnPreRetrievedResults {
         }
 
         bw.close();
+        denseVecReader.close();
     }
 }
